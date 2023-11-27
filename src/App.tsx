@@ -52,6 +52,10 @@ const IMAGES = [
 const App = () => {
   const lenis = useLenis()
   const reqFrame = useRef<number>(0)
+  const [windowDimensions, setWindowDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  })
   const [isDragging, setIsDragging] = useState(false)
   const [startPos, setStartPos] = useState({
     y: 0,
@@ -60,6 +64,10 @@ const App = () => {
   const [progress, setProgress] = useState(0)
   const mapHeight = IMAGES.length * 80 + IMAGES.length * 8 - 8
   const mapOffsetPercentage = (80 / mapHeight) * 100
+
+  const handleMapItemClick = (i: number) => {
+    lenis.scrollTo(windowDimensions.height * 0.8 * i + 24 * i)
+  }
 
   useEffect(() => {
     const raf = (time: number) => {
@@ -83,7 +91,9 @@ const App = () => {
     }
 
     window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
   }, [lenis, isDragging, startPos])
 
   useEffect(() => {
@@ -101,12 +111,24 @@ const App = () => {
 
     window.addEventListener('mousedown', handleMouseDown)
     window.addEventListener('mouseup', handleMouseUp)
-
     return () => {
       window.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('mouseup', handleMouseUp)
     }
   }, [lenis])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   return (
     <>
@@ -129,7 +151,11 @@ const App = () => {
             }}
           >
             {IMAGES.map((item, i) => (
-              <div key={i} className="map__item">
+              <div
+                key={i}
+                className="map__item"
+                onClick={() => handleMapItemClick(i)}
+              >
                 <img src={item.src} alt={item.alt} draggable={false} />
               </div>
             ))}
