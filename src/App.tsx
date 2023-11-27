@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useLenis } from '@studio-freight/react-lenis'
+import { useEffect, useRef, useState } from 'react'
 import './main.scss'
-import Lenis from '@studio-freight/lenis'
 
 const getImageUrl = (x: string) => {
   return new URL(`/src/assets/img/${x}`, import.meta.url).href
@@ -50,38 +50,63 @@ const IMAGES = [
 ]
 
 const App = () => {
-  const [windowDimensions, setWindowDimensions] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
+  const lenis = useLenis()
+  const reqFrame = useRef<number>(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [startPos, setStartPos] = useState({
+    y: 0,
+    top: 0,
   })
   const [progress, setProgress] = useState(0)
   const mapHeight = IMAGES.length * 80 + IMAGES.length * 8 - 8
-  const mapOffsetPercentage = 80 / mapHeight
+  const mapOffsetPercentage = (80 / mapHeight) * 100
 
   useEffect(() => {
-    const lenis = new Lenis()
-
     const raf = (time: number) => {
-      lenis.raf(time)
-      setProgress(lenis.progress)
-      requestAnimationFrame(raf)
+      if (lenis) {
+        lenis.raf(time)
+        setProgress(lenis.progress)
+      }
+      reqFrame.current = requestAnimationFrame(raf)
     }
 
-    requestAnimationFrame(raf)
-  }, [])
+    reqFrame.current = requestAnimationFrame(raf)
+
+    return () => cancelAnimationFrame(reqFrame.current)
+  }, [lenis])
 
   useEffect(() => {
-    const handleResize = () => {
-      setWindowDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      })
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      const deltaY = e.clientY - startPos.y
+      lenis.scrollTo(startPos.top - deltaY * 1.5)
     }
 
-    window.addEventListener('resize', handleResize)
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [lenis, isDragging, startPos])
 
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      setStartPos({
+        y: e.clientY,
+        top: lenis.scroll,
+      })
+      setIsDragging(true)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [lenis])
 
   return (
     <>
@@ -98,7 +123,8 @@ const App = () => {
             className="map"
             style={{
               transform: `translate3d(0,  ${
-                mapOffsetPercentage - progress * 100
+                -mapOffsetPercentage / 2 -
+                progress * (100 - mapOffsetPercentage)
               }%, 0)`,
             }}
           >
